@@ -18,15 +18,15 @@ class CacheFeedUseCaseTests: XCTestCase {
     
     func test_save_requestsCacheDeletion() {
         let (store, sut) = makeSUT()
-        let items = [uniqueItem, uniqueItem]
-        sut.save(items) { _ in }
+ 
+        sut.save(uniqueItems.models) { _ in }
         XCTAssertEqual(store.receivedMessages, [.deleteCachedFeed])
     }
     
     func test_save_doesNotRequestCacheInsertionOnDeletionError() {
         let (store, sut) = makeSUT()
-        let items = [uniqueItem, uniqueItem]
-        sut.save(items) { _ in }
+        
+        sut.save(uniqueItems.models) { _ in }
         let deletionError = anyNSError
         store.completeDeletion(with: deletionError)
         XCTAssertEqual(store.receivedMessages, [.deleteCachedFeed])
@@ -35,15 +35,12 @@ class CacheFeedUseCaseTests: XCTestCase {
     func test_save_requestsNewCacheInsertionWithTimestampOnSuccessfulDeletion() {
         let timestamp = Date()
         let (store, sut) = makeSUT(currentDate: { timestamp })
-        let items = [uniqueItem, uniqueItem]
-        let localItems = items.map {
-            LocalFeedItem(id: $0.id, description: $0.description, location: $0.location, imageURL: $0.imageURL)
-        }
-        sut.save(items) { _ in }
+        let items = uniqueItems
+        sut.save(items.models) { _ in }
         
         store.completeDeletionSuccessfully()
         
-        XCTAssertEqual(store.receivedMessages, [.deleteCachedFeed, .insert(localItems, timestamp)])
+        XCTAssertEqual(store.receivedMessages, [.deleteCachedFeed, .insert(items.local, timestamp)])
     }
     
     func test_save_failsOnDeletionError() {
@@ -138,6 +135,12 @@ class CacheFeedUseCaseTests: XCTestCase {
     
     private var uniqueItem: FeedItem {
         FeedItem(id: UUID(), description: "", location: "", imageURL: anyURL)
+    }
+    
+    private var uniqueItems: (models: [FeedItem], local: [LocalFeedItem]) {
+        let models = [uniqueItem, uniqueItem]
+        let local = models.map { LocalFeedItem(id: $0.id, description: $0.description, location: $0.location, imageURL: $0.imageURL)}
+        return (models, local)
     }
     
     private class FeedStoreSpy: FeedStore {
